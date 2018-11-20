@@ -223,6 +223,17 @@ def close_li(db):
     db = db + '''</li>\n'''
     return db
 
+def open_body(db):
+    db = db + '''\
+    <body>'''
+    return db
+
+def close_body(db):
+    db = db + '''
+    </body>
+'''
+    return db
+
 def open_project(db, cat, title):
     db = db + '''\
   <project cat='%s'>
@@ -231,14 +242,8 @@ def open_project(db, cat, title):
 ''' % (cat, title)
     return db
 
-def open_body(db):
-    db = db + '''\
-    <body>'''
-    return db
-
 def close_project(db):
     db = db + '''
-    </body>
   </project>
 
 '''
@@ -286,6 +291,21 @@ def append_links(db, links):
 ''' 
     return db
 
+def append_sponsors(db, sponsors):
+    if not sponsors:
+        return db
+
+    for sponsor in sponsors:
+        db = db + '''\
+
+    <sponsor>
+      %s
+    </sponsor>
+''' % sponsor
+
+    return db
+
+
 def md2docbook(infile):
     cat = 'unknown' # For parsing individual submissions.
     db = docbook_header
@@ -294,6 +314,7 @@ def md2docbook(infile):
     inside_ul = False
     contacts = []
     links = []
+    sponsors = []
 
     for line in infile:
         line = line.rstrip()
@@ -333,11 +354,15 @@ def md2docbook(infile):
                 inside_ul = False
 
             if inside_body:
-                db = close_project(db)
+                db = close_body(db)
                 inside_body = False
+
+            db = append_sponsors(db, sponsors)
+            db = close_project(db)
 
             contacts = []
             links = []
+            sponsors = []
 
             db = open_project(db, cat, title)
             continue
@@ -366,6 +391,11 @@ def md2docbook(infile):
                 name = href
 
             links.append((name, href))
+            continue
+
+        if line.startswith('Sponsor:'):
+            sponsor = line[len('Sponsor:'):].strip()
+            sponsors.append(sponsor)
             continue
 
         if line.strip() == '':
@@ -410,7 +440,6 @@ def md2docbook(infile):
         elif inside_ul:
             if not avoid_newline:
                 db = db + '\n          '
-            pass
         else:
             db = open_p(db)
             inside_p = True
@@ -426,6 +455,8 @@ def md2docbook(infile):
         db = close_ul(db)
         inside_ul = False
 
+    db = append_sponsors(db, sponsors)
+    db = close_body(db)
     db = close_project(db) + docbook_footer
     inside_body = False
 
