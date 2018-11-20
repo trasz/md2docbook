@@ -342,6 +342,10 @@ def md2docbook(infile):
             db = open_project(db, cat, title)
             continue
 
+        # Translate '###' into '<p>', to match earlier reports.
+        if line.startswith('### '):
+            line = line.strip('# ')
+
         if line.startswith('Contact:'):
             # The comma in 'Name, <email>' confuses parseaddr().
             line = line.replace(',', '')
