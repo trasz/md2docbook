@@ -32,6 +32,7 @@ import re
 import sys
 from email.utils import parseaddr
 
+# This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
 docbook_header = '''\
 <?xml version="1.0" encoding="utf-8" ?>
 <!DOCTYPE report PUBLIC "-//FreeBSD//DTD FreeBSD XML Database for
@@ -192,6 +193,99 @@ def reflow(s, indent):
 
     return t
 
+def open_p(db):
+    db = db + '''\
+
+      <p>'''
+    return db
+
+def close_p(db):
+    db = db + '''</p>\n'''
+    return db
+
+def open_ul(db):
+    db = db + '''
+      <ul>'''
+    return db
+
+def close_ul(db):
+    db = db + '''\
+      </ul>
+'''
+    return db
+
+def open_li(db):
+    db = db + '''
+        <li>'''
+    return db
+
+def close_li(db):
+    db = db + '''</li>\n'''
+    return db
+
+def open_project(db, cat, title):
+    db = db + '''\
+  <project cat='%s'>
+    <title>%s</title>
+
+''' % (cat, title)
+    return db
+
+def open_body(db):
+    db = db + '''\
+    <body>'''
+    return db
+
+def close_project(db):
+    db = db + '''
+    </body>
+  </project>
+
+'''
+    return db
+ 
+def append_contacts(db, contacts):
+    if not contacts:
+        return db
+
+    # You know, it's not that I don't know about templating
+    # engines.  I do.  I just want to give you some additional
+    # motivation :->
+    db = db + '''\
+    <contact>
+'''
+    for person in contacts:
+        db = db + '''\
+      <person>
+        <name>%s</name>
+        <email>%s</email>
+      </person>
+''' % (person[0], person[1])
+
+    db = db + '''\
+    </contact>
+
+''' 
+    return db
+
+def append_links(db, links):
+    if not links:
+        return db
+
+    db = db + '''\
+    <links>
+'''
+    for link in links:
+        db = db + '''\
+      <url href="%s">%s</url>
+''' % (link[1], link[0])
+
+    db = db + '''\
+    </links>
+
+''' 
+    return db
+
 def md2docbook(infile):
     cat = 'unknown' # For parsing individual submissions.
     db = docbook_header
@@ -203,6 +297,7 @@ def md2docbook(infile):
 
     for line in infile:
         line = line.rstrip()
+        avoid_newline = False
 
         if line == '# FreeBSD Team Reports #':
             cat = 'team'
@@ -230,33 +325,21 @@ def md2docbook(infile):
 
             # XXX: As I've mentioned, this _really_ should get rewritten.
             if inside_p:
-                db = db + '''\
-      </p>
-'''
+                db = close_p(db)
+                inside_p = False
 
             if inside_ul:
-                db = db + '''\
-      </ul>
-'''
+                db = close_ul(db)
+                inside_ul = False
 
             if inside_body:
-                db = db + '''\
+                db = close_project(db)
+                inside_body = False
 
-    </body>
-  </project>
-
-'''
             contacts = []
             links = []
-            inside_body = False
-            inside_p = False
-            inside_ul = False
 
-            db = db + '''\
-  <project cat='%s'>
-    <title>%s</title>
-
-''' % (cat, title)
+            db = open_project(db, cat, title)
             continue
 
         if line.startswith('Contact:'):
@@ -281,98 +364,66 @@ def md2docbook(infile):
             links.append((name, href))
             continue
 
-        if line == '' and not inside_body:
-            continue;
+        if line.strip() == '':
+            if not inside_body:
+                continue;
+            if inside_p:
+                db = close_p(db)
+                inside_p = False
+                continue
 
         if not inside_body:
-            if contacts:
-
-                # You know, it's not that I don't know about templating
-                # engines.  I do.  I just want to give you some additional
-                # motivation :->
-                db = db + '''\
-    <contact>
-'''
-                for person in contacts:
-                    db = db + '''\
-      <person>
-        <name>%s</name>
-        <email>%s</email>
-      </person>
-''' % (person[0], person[1])
-
-                db = db + '''\
-    </contact>
-
-''' 
-
-            if links:
-                db = db + '''\
-    <links>
-'''
-                for link in links:
-                    db = db + '''\
-      <url href="%s">%s</url>
-''' % (link[1], link[0])
-
-                db = db + '''\
-    </links>
-
-''' 
-
-            db = db + '''\
-    <body>'''
+            db = append_contacts(db, contacts)
+            db = append_links(db, contacts)
+            db = open_body(db)
             inside_body = True
 
         # Unordered lists.
         if line.strip().startswith(('-', '*')):
             line = line.lstrip('*- ')
             if inside_p:
-                db = db + '''\
-      </p>
-'''
+                db = close_p(db)
                 inside_p = False
             if inside_ul:
-                db = db + '''</li>\n'''
+                db = close_li(db)
             else:
-                db = db + '''
-      <ul>
-'''
+                db = open_ul(db)
                 inside_ul = True
-            db = db + '''\
-        <li>'''
+            db = open_li(db)
+            avoid_newline = True
 
         elif not line.startswith(' ') and inside_ul:
-            db = db + '''</li>
-      </ul>
-'''
+            db = close_li(db)
+            db = close_ul(db)
             inside_ul = False
 
-        if line == '' and inside_p:
-            db = db + '''</p>\n'''
-            inside_p = False
-            continue
-
-        # Here we paste the plain text.
+        # Here we paste the plain text.  Note that the text
+        # in 'db' is generally _not_ followed by a newline,
+        # so that we don't need to remove them when we append
+        # '</p>'.
         if inside_p:
             db = db + '\n        '
         elif inside_ul:
-            db = db + '\n'
+            if not avoid_newline:
+                db = db + '\n          '
             pass
         else:
-            db = db + '''
-      <p>'''
+            db = open_p(db)
             inside_p = True
 
         db = db + reflow(line, 8)
 
     # Now I'm feeling guilty :-(
-    db = db + '''
-      </p>
-    </body>
-  </project>
-'''
-    db = db + docbook_footer
+    if inside_p:
+        db = close_p(db)
+        inside_p = False
+
+    if inside_ul:
+        db = close_ul(db)
+        inside_ul = False
+
+    db = close_project(db) + docbook_footer
+    inside_body = False
 
     return db
 
