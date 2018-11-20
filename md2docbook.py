@@ -374,7 +374,7 @@ def md2docbook(infile):
 
         if not inside_body:
             db = append_contacts(db, contacts)
-            db = append_links(db, contacts)
+            db = append_links(db, links)
             db = open_body(db)
             inside_body = True
 
