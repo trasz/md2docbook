@@ -193,14 +193,16 @@ def reflow(s, indent):
     return t
 
 def md2docbook(infile):
+    cat = 'unknown' # For parsing individual submissions.
     db = docbook_header
     inside_body = False
     inside_p = False
+    inside_ul = False
     contacts = []
     links = []
 
     for line in infile:
-        line = line.strip()
+        line = line.rstrip()
 
         if line == '# FreeBSD Team Reports #':
             cat = 'team'
@@ -232,6 +234,11 @@ def md2docbook(infile):
       </p>
 '''
 
+            if inside_ul:
+                db = db + '''\
+      </ul>
+'''
+
             if inside_body:
                 db = db + '''\
 
@@ -243,6 +250,7 @@ def md2docbook(infile):
             links = []
             inside_body = False
             inside_p = False
+            inside_ul = False
 
             db = db + '''\
   <project cat='%s'>
@@ -273,11 +281,8 @@ def md2docbook(infile):
             links.append((name, href))
             continue
 
-        if line == '':
-            if inside_p:
-                db = db + '''</p>\n'''
-                inside_p = False
-            continue
+        if line == '' and not inside_body:
+            continue;
 
         if not inside_body:
             if contacts:
@@ -319,9 +324,41 @@ def md2docbook(infile):
     <body>'''
             inside_body = True
 
+        # Unordered lists.
+        if line.strip().startswith(('-', '*')):
+            line = line.lstrip('*- ')
+            if inside_p:
+                db = db + '''\
+      </p>
+'''
+                inside_p = False
+            if inside_ul:
+                db = db + '''</li>\n'''
+            else:
+                db = db + '''
+      <ul>
+'''
+                inside_ul = True
+            db = db + '''\
+        <li>'''
+
+        elif not line.startswith(' ') and inside_ul:
+            db = db + '''</li>
+      </ul>
+'''
+            inside_ul = False
+
+        if line == '' and inside_p:
+            db = db + '''</p>\n'''
+            inside_p = False
+            continue
+
         # Here we paste the plain text.
         if inside_p:
             db = db + '\n        '
+        elif inside_ul:
+            db = db + '\n'
+            pass
         else:
             db = db + '''
       <p>'''
