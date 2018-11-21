@@ -331,6 +331,9 @@ def md2docbook(infile):
         if line == '# Ports #':
             cat = 'ports'
             continue
+        if line == '# Architectures #':
+            cat = 'arch'
+            continue
         if line == '# Documentation #':
             cat = 'doc'
             continue
