@@ -31,6 +31,7 @@ import datetime
 import re
 import sys
 from email.utils import parseaddr
+from xml.sax.saxutils import escape
 
 # This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
 docbook_header = '''\
@@ -309,6 +310,7 @@ def append_sponsors(db, sponsors):
 def md2docbook(infile):
     cat = 'unknown' # For parsing individual submissions.
     db = docbook_header
+    inside_project = False
     inside_body = False
     inside_p = False
     inside_ul = False
@@ -357,14 +359,17 @@ def md2docbook(infile):
                 db = close_body(db)
                 inside_body = False
 
-            db = append_sponsors(db, sponsors)
-            db = close_project(db)
+            if inside_project:
+                db = append_sponsors(db, sponsors)
+                db = close_project(db)
+                inside_project = False
 
             contacts = []
             links = []
             sponsors = []
 
             db = open_project(db, cat, title)
+            inside_project = True
             continue
 
         # Translate '###' into '<p>', to match earlier reports.
@@ -444,7 +449,7 @@ def md2docbook(infile):
             db = open_p(db)
             inside_p = True
 
-        db = db + reflow(line, 8)
+        db = db + reflow(escape(line), 8)
 
     # Now I'm feeling guilty :-(
     if inside_p:
