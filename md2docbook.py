@@ -324,6 +324,9 @@ def md2docbook(infile):
         if line == '# FreeBSD Team Reports #':
             cat = 'team'
             continue
+        if line == '# Projects #':
+            cat = 'proj'
+            continue
         if line == '# Kernel Projects #':
             cat = 'kern'
             continue
