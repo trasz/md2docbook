@@ -27,14 +27,13 @@
 # XXX: This should get rewritten by someone who actually knows Python.
 #
 
-import datetime
 import re
 import sys
 from email.utils import parseaddr
 from xml.sax.saxutils import escape
 
 # This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
-docbook_header = '''\
+DOCBOOK_HEADER = '''\
 <?xml version="1.0" encoding="utf-8" ?>
 <!DOCTYPE report PUBLIC "-//FreeBSD//DTD FreeBSD XML Database for
   Status Report//EN"
@@ -171,145 +170,145 @@ docbook_header = '''\
 
 '''
 
-docbook_footer = '''\
+DOCBOOK_FOOTER = '''\
 </report>'''
 
-def reflow(s, indent):
-    if not s:
+def reflow(line, indent):
+    if not line:
         return ''
 
-    t = ''
-    tlen = 0
+    text = ''
+    textlen = 0
 
-    for word in s.split():
-        if tlen + len(word) >= 79 - indent:
-            t = t + '\n' + ' ' * indent
-            tlen = indent
-        elif tlen > 0:
-            t = t + ' '
-            tlen = tlen + 1
+    for word in line.split():
+        if textlen + len(word) >= 79 - indent:
+            text = text + '\n' + ' ' * indent
+            textlen = indent
+        elif textlen > 0:
+            text = text + ' '
+            textlen = textlen + 1
 
-        t = t + word
-        tlen = tlen + len(word)
+        text = text + word
+        textlen = textlen + len(word)
 
-    return t
+    return text
 
-def open_p(db):
-    db = db + '''\
+def open_p(report):
+    report = report + '''\
 
       <p>'''
-    return db
+    return report
 
-def close_p(db):
-    db = db + '''</p>\n'''
-    return db
+def close_p(report):
+    report = report + '''</p>\n'''
+    return report
 
-def open_ul(db):
-    db = db + '''
+def open_ul(report):
+    report = report + '''
       <ul>'''
-    return db
+    return report
 
-def close_ul(db):
-    db = db + '''\
+def close_ul(report):
+    report = report + '''\
       </ul>
 '''
-    return db
+    return report
 
-def open_li(db):
-    db = db + '''
+def open_li(report):
+    report = report + '''
         <li>'''
-    return db
+    return report
 
-def close_li(db):
-    db = db + '''</li>\n'''
-    return db
+def close_li(report):
+    report = report + '''</li>\n'''
+    return report
 
-def open_body(db):
-    db = db + '''\
+def open_body(report):
+    report = report + '''\
     <body>'''
-    return db
+    return report
 
-def close_body(db):
-    db = db + '''
+def close_body(report):
+    report = report + '''
     </body>
 '''
-    return db
+    return report
 
-def open_project(db, cat, title):
-    db = db + '''\
+def open_project(report, cat, title):
+    report = report + '''\
   <project cat='%s'>
     <title>%s</title>
 
 ''' % (cat, title)
-    return db
+    return report
 
-def close_project(db):
-    db = db + '''
+def close_project(report):
+    report = report + '''
   </project>
 
 '''
-    return db
- 
-def append_contacts(db, contacts):
+    return report
+
+def append_contacts(report, contacts):
     if not contacts:
-        return db
+        return report
 
     # You know, it's not that I don't know about templating
     # engines.  I do.  I just want to give you some additional
     # motivation :->
-    db = db + '''\
+    report = report + '''\
     <contact>
 '''
     for person in contacts:
-        db = db + '''\
+        report = report + '''\
       <person>
         <name>%s</name>
         <email>%s</email>
       </person>
 ''' % (person[0], person[1])
 
-    db = db + '''\
+    report = report + '''\
     </contact>
 
-''' 
-    return db
+'''
+    return report
 
-def append_links(db, links):
+def append_links(report, links):
     if not links:
-        return db
+        return report
 
-    db = db + '''\
+    report = report + '''\
     <links>
 '''
     for link in links:
-        db = db + '''\
+        report = report + '''\
       <url href="%s">%s</url>
 ''' % (link[1], link[0])
 
-    db = db + '''\
+    report = report + '''\
     </links>
 
-''' 
-    return db
+'''
+    return report
 
-def append_sponsors(db, sponsors):
+def append_sponsors(report, sponsors):
     if not sponsors:
-        return db
+        return report
 
     for sponsor in sponsors:
-        db = db + '''\
+        report = report + '''\
 
     <sponsor>
       %s
     </sponsor>
 ''' % sponsor
 
-    return db
+    return report
 
 
 def md2docbook(infile):
     cat = 'unknown' # For parsing individual submissions.
-    db = docbook_header
+    report = DOCBOOK_HEADER
     inside_project = False
     inside_body = False
     inside_p = False
@@ -341,7 +340,8 @@ def md2docbook(infile):
             cat = 'third'
             continue
         if line.startswith('# '):
-            sys.exit('invalid category name "%s"; please consult %s source code"' % (line, sys.argv[0]))
+            sys.exit('invalid category name "%s"; please consult %s source code"' \
+                % (line, sys.argv[0]))
 
         if line.startswith('## '):
             title = line.strip('# ')
@@ -351,27 +351,27 @@ def md2docbook(infile):
 
             # XXX: As I've mentioned, this _really_ should get rewritten.
             if inside_p:
-                db = close_p(db)
+                report = close_p(report)
                 inside_p = False
 
             if inside_ul:
-                db = close_ul(db)
+                report = close_ul(report)
                 inside_ul = False
 
             if inside_body:
-                db = close_body(db)
+                report = close_body(report)
                 inside_body = False
 
             if inside_project:
-                db = append_sponsors(db, sponsors)
-                db = close_project(db)
+                report = append_sponsors(report, sponsors)
+                report = close_project(report)
                 inside_project = False
 
             contacts = []
             links = []
             sponsors = []
 
-            db = open_project(db, cat, title)
+            report = open_project(report, cat, title)
             inside_project = True
             continue
 
@@ -386,13 +386,13 @@ def md2docbook(infile):
             continue
 
         if line.startswith('Link:'):
-            href = re.search('\((.+)\)', line)
+            href = re.search(r'\((.+)\)', line)
             if href:
                 href = href.group(1)
             else:
                 href = ''
 
-            name = re.search('\[(.+)\]', line)
+            name = re.search(r'\[(.+)\]', line)
             if name:
                 name = name.group(1)
             else:
@@ -408,67 +408,67 @@ def md2docbook(infile):
 
         if line.strip() == '':
             if not inside_body:
-                continue;
+                continue
             if inside_p:
-                db = close_p(db)
+                report = close_p(report)
                 inside_p = False
                 continue
 
         if not inside_body:
-            db = append_contacts(db, contacts)
-            db = append_links(db, links)
-            db = open_body(db)
+            report = append_contacts(report, contacts)
+            report = append_links(report, links)
+            report = open_body(report)
             inside_body = True
 
         # Unordered lists.
         if line.strip().startswith(('-', '*')):
             line = line.lstrip('*- ')
             if inside_p:
-                db = close_p(db)
+                report = close_p(report)
                 inside_p = False
             if inside_ul:
-                db = close_li(db)
+                report = close_li(report)
             else:
-                db = open_ul(db)
+                report = open_ul(report)
                 inside_ul = True
-            db = open_li(db)
+            report = open_li(report)
             avoid_newline = True
 
         elif not line.startswith(' ') and inside_ul:
-            db = close_li(db)
-            db = close_ul(db)
+            report = close_li(report)
+            report = close_ul(report)
             inside_ul = False
 
         # Here we paste the plain text.  Note that the text
-        # in 'db' is generally _not_ followed by a newline,
+        # in 'report' is generally _not_ followed by a newline,
         # so that we don't need to remove them when we append
         # '</p>'.
         if inside_p:
-            db = db + '\n        '
+            report = report + '\n        '
         elif inside_ul:
             if not avoid_newline:
-                db = db + '\n          '
+                report = report + '\n          '
         else:
-            db = open_p(db)
+            report = open_p(report)
             inside_p = True
 
-        db = db + reflow(escape(line), 8)
+        report = report + reflow(escape(line), 8)
 
     # Now I'm feeling guilty :-(
     if inside_p:
-        db = close_p(db)
+        report = close_p(report)
         inside_p = False
 
     if inside_ul:
-        db = close_ul(db)
+        report = close_ul(report)
         inside_ul = False
 
-    db = append_sponsors(db, sponsors)
-    db = close_body(db)
-    db = close_project(db) + docbook_footer
+    report = append_sponsors(report, sponsors)
+    report = close_body(report)
+    report = close_project(report) + DOCBOOK_FOOTER
     inside_body = False
 
-    return db
+    return report
 
 def main():
     if len(sys.argv) > 3:
@@ -489,4 +489,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
