@@ -173,7 +173,7 @@ DOCBOOK_HEADER = '''\
 DOCBOOK_FOOTER = '''\
 </report>'''
 
-def reflow(line, indent):
+def reflow(line):
     if not line:
         return ''
 
@@ -181,9 +181,9 @@ def reflow(line, indent):
     textlen = 0
 
     for word in line.split():
-        if textlen + len(word) >= 79 - indent:
-            text = text + '\n' + ' ' * indent
-            textlen = indent
+        if textlen + len(word) >= 66 - 8:
+            text = text + '\n' + '\t'
+            textlen = 8
         elif textlen > 0:
             text = text + ' '
             textlen = textlen + 1
@@ -216,7 +216,7 @@ def close_ul(report):
 
 def open_li(report):
     report = report + '''
-        <li>'''
+	<li>'''
     return report
 
 def close_li(report):
@@ -262,8 +262,8 @@ def append_contacts(report, contacts):
     for person in contacts:
         report = report + '''\
       <person>
-        <name>%s</name>
-        <email>%s</email>
+	<name>%s</name>
+	<email>%s</email>
       </person>
 ''' % (person[0], person[1])
 
@@ -450,10 +450,10 @@ def md2docbook(infile):
         # so that we don't need to remove them when we append
         # '</p>'.
         if inside_p:
-            report = report + '\n        '
+            report = report + '\n\t'
         elif inside_ul:
             if not avoid_newline:
-                report = report + '\n          '
+                report = report + '\n\t'
         else:
             report = open_p(report)
             inside_p = True
@@ -472,7 +472,7 @@ def md2docbook(infile):
                 name = href
             line = line.replace('(' + href + ')', append_a('', name, href))
 
-        report = report + reflow(line, 8)
+        report = report + reflow(line)
 
     # Now I'm feeling guilty :-(
     if inside_p:
