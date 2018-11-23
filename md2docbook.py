@@ -305,6 +305,9 @@ def append_sponsors(report, sponsors):
 
     return report
 
+def append_a(report, name, href):
+    report = report + '<a href="%s">%s</a>' % (href, name)
+    return report
 
 def md2docbook(infile):
     cat = 'unknown' # For parsing individual submissions.
@@ -455,7 +458,21 @@ def md2docbook(infile):
             report = open_p(report)
             inside_p = True
 
-        report = report + reflow(escape(line), 8)
+        line = escape(line)
+
+        # Handle inline links with the usual Markdown syntax.
+        href = re.search(r'\((.+)\)', line)
+        if href and href.group(1).startswith('http'):
+            href = href.group(1)
+            name = re.search(r'\[(.+)\]', line)
+            if name:
+                name = name.group(1)
+                line = re.sub(r'\[.*\]', '', line)
+            else:
+                name = href
+            line = line.replace('(' + href + ')', append_a('', name, href))
+
+        report = report + reflow(line, 8)
 
     # Now I'm feeling guilty :-(
     if inside_p:
