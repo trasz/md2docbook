@@ -473,6 +473,12 @@ def md2docbook(infile):
                     name = href
                 line = line.replace('(' + href + ')', append_a('', name, href))
 
+        # Handle *this*.
+        line = re.sub(r'(^| )\*([^ ][^*]+)\*', r'\1<tt>\2</tt>', line)
+
+        # Handle `this`.
+        line = re.sub(r'(^| )\`([^ ][^`]+)\`', r'\1<tt>\2</tt>', line)
+
         report = report + reflow(line)
 
     # Now I'm feeling guilty :-(
