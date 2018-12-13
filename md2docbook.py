@@ -461,16 +461,17 @@ def md2docbook(infile):
         line = escape(line)
 
         # Handle inline links with the usual Markdown syntax.
-        href = re.search(r'\((.+)\)', line)
-        if href and href.group(1).startswith('http'):
-            href = href.group(1)
-            name = re.search(r'\[(.+)\]', line)
-            if name:
-                name = name.group(1)
-                line = re.sub(r'\[.*\]', '', line)
-            else:
-                name = href
-            line = line.replace('(' + href + ')', append_a('', name, href))
+        hrefs = re.findall(r'\(([^)]+)\)', line)
+        for match in hrefs:
+            if match.startswith('http'):
+                href = match
+                name = re.search(r'\[(.+)\]', line)
+                if name:
+                    name = name.group(1)
+                    line = re.sub(r'\[.*\]', '', line)
+                else:
+                    name = href
+                line = line.replace('(' + href + ')', append_a('', name, href))
 
         report = report + reflow(line)
 
