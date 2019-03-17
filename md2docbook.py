@@ -345,6 +345,9 @@ def md2docbook(infile):
         if line == '# Third-Party Projects #':
             cat = 'third'
             continue
+        if line == '# Miscellaneous #':
+            cat = 'misc'
+            continue
         if line.startswith('# '):
             sys.exit('invalid category name "%s"; please consult %s source code"' \
                 % (line, sys.argv[0]))
