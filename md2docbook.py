@@ -209,6 +209,7 @@ def open_ul(report):
     return report
 
 def close_ul(report):
+    report = close_li(report)
     report = report + '''\
       </ul>
 '''
@@ -348,6 +349,9 @@ def md2docbook(infile):
         if line == '# Miscellaneous #':
             cat = 'misc'
             continue
+        if line == '# Userland Programs #':
+            cat = 'bin'
+            continue
         if line.startswith('# '):
             sys.exit('invalid category name "%s"; please consult %s source code"' \
                 % (line, sys.argv[0]))
@@ -444,7 +448,6 @@ def md2docbook(infile):
             avoid_newline = True
 
         elif not line.startswith(' ') and inside_ul:
-            report = close_li(report)
             report = close_ul(report)
             inside_ul = False
 
