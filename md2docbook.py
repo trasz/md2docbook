@@ -32,8 +32,9 @@ import sys
 from email.utils import parseaddr
 from xml.sax.saxutils import escape
 
-# This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
-DOCBOOK_HEADER = '''\
+class report_class:
+    # This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
+    text = '''\
 <?xml version="1.0" encoding="utf-8" ?>
 <!DOCTYPE report PUBLIC "-//FreeBSD//DTD FreeBSD XML Database for
   Status Report//EN"
@@ -168,10 +169,95 @@ DOCBOOK_HEADER = '''\
       veracity of any claims in these submissions.</p>
   </category>
 
-'''
+    '''
 
-DOCBOOK_FOOTER = '''\
-</report>'''
+    inside = dict.fromkeys(['project',\
+                            'body',\
+                            'p',\
+                            'ul',\
+                            'li'])
+
+    def append(self, line):
+        self.text += line
+
+    def append_contacts(self, contacts):
+        if not contacts:
+            return self.text
+
+        # You know, it's not that I don't know about templating
+        # engines.  I do.  I just want to give you some additional
+        # motivation :->
+        self.text += '<contact>'
+        for person in contacts:
+            self.text += '''\
+          <person>
+            <name>%s</name>
+            <email>%s</email>
+          </person>
+    ''' % (person[0], person[1])
+
+        self.text += '''\
+        </contact>
+
+    '''
+
+    def append_links(self, links):
+        if not links:
+            return self.text
+
+        self.text += '''\
+        <links>
+    '''
+        for link in links:
+            self.text += '''\
+          <url href="%s">%s</url>
+    ''' % (link[1], link[0])
+
+        self.text += '''\
+        </links>
+
+    '''
+
+    def append_sponsors(self, sponsors):
+        if not sponsors:
+            return self.text
+
+        for sponsor in sponsors:
+            self.text += '''\
+
+        <sponsor>
+          %s
+        </sponsor>
+    ''' % sponsor
+
+    def close(self, tag):
+        self.text += '</' + tag + '>\n'
+        self.inside[tag] = False
+    
+    def get(self):
+        return self.text + '</report>'
+
+    def is_inside(self, tag):
+        return self.inside[tag]
+
+    def newline(self):
+        self.append('\n\t')
+        
+    # salvadore:
+    # category and title should be set only for tag == 'project'
+    # I do not check for it because if an error arises it is our fault,
+    # not the input fault
+    def open(self, tag, category='', title=''):
+        if tag == 'project':
+            extra = ' cat="' + category + \
+            '"><title>' + title + '</title'
+            if self.is_inside('project'):
+                self.close('project')
+        else:
+            extra = ''
+
+        self.text += '<' + tag + extra + '>'
+        self.inside[tag] = True
 
 def reflow(line):
     if not line:
@@ -193,133 +279,12 @@ def reflow(line):
 
     return text
 
-def open_p(report):
-    report = report + '''\
-
-      <p>'''
-    return report
-
-def close_p(report):
-    report = report + '''</p>\n'''
-    return report
-
-def open_ul(report):
-    report = report + '''
-      <ul>'''
-    return report
-
-def close_ul(report):
-    report = close_li(report)
-    report = report + '''\
-      </ul>
-'''
-    return report
-
-def open_li(report):
-    report = report + '''
-	<li>'''
-    return report
-
-def close_li(report):
-    report = report + '''</li>\n'''
-    return report
-
-def open_body(report):
-    report = report + '''\
-    <body>'''
-    return report
-
-def close_body(report):
-    report = report + '''
-    </body>
-'''
-    return report
-
-def open_project(report, cat, title):
-    report = report + '''\
-  <project cat='%s'>
-    <title>%s</title>
-
-''' % (cat, title)
-    return report
-
-def close_project(report):
-    report = report + '''
-  </project>
-
-'''
-    return report
-
-def append_contacts(report, contacts):
-    if not contacts:
-        return report
-
-    # You know, it's not that I don't know about templating
-    # engines.  I do.  I just want to give you some additional
-    # motivation :->
-    report = report + '''\
-    <contact>
-'''
-    for person in contacts:
-        report = report + '''\
-      <person>
-	<name>%s</name>
-	<email>%s</email>
-      </person>
-''' % (person[0], person[1])
-
-    report = report + '''\
-    </contact>
-
-'''
-    return report
-
-def append_links(report, links):
-    if not links:
-        return report
-
-    report = report + '''\
-    <links>
-'''
-    for link in links:
-        report = report + '''\
-      <url href="%s">%s</url>
-''' % (link[1], link[0])
-
-    report = report + '''\
-    </links>
-
-'''
-    return report
-
-def append_sponsors(report, sponsors):
-    if not sponsors:
-        return report
-
-    for sponsor in sponsors:
-        report = report + '''\
-
-    <sponsor>
-      %s
-    </sponsor>
-''' % sponsor
-
-    return report
-
-def append_a(report, name, href):
-    report = report + '<a href="%s">%s</a>' % (href, name)
-    return report
-
 def md2docbook(infile):
     cat = 'unknown' # For parsing individual submissions.
-    report = DOCBOOK_HEADER
-    inside_project = False
-    inside_body = False
-    inside_p = False
-    inside_ul = False
     contacts = []
     links = []
     sponsors = []
+    report = report_class()
 
     for line in infile:
         line = line.rstrip()
@@ -363,29 +328,21 @@ def md2docbook(infile):
             # the old one.
 
             # XXX: As I've mentioned, this _really_ should get rewritten.
-            if inside_p:
-                report = close_p(report)
-                inside_p = False
+            # salvadore: I've rewritten this a bit, but I guess we can
+            # still do better
+            for tag in ['p', 'ul', 'body']:
+                if report.is_inside(tag):
+                    report.close(tag)
 
-            if inside_ul:
-                report = close_ul(report)
-                inside_ul = False
-
-            if inside_body:
-                report = close_body(report)
-                inside_body = False
-
-            if inside_project:
-                report = append_sponsors(report, sponsors)
-                report = close_project(report)
-                inside_project = False
+            if report.is_inside('project'):
+                report.append_sponsors(sponsors)
+                report.close('project')
 
             contacts = []
             links = []
             sponsors = []
 
-            report = open_project(report, cat, title)
-            inside_project = True
+            report.open('project', cat, title)
             continue
 
         # Translate '###' into '<p>', to match earlier reports.
@@ -420,49 +377,44 @@ def md2docbook(infile):
             continue
 
         if line.strip() == '':
-            if not inside_body:
+            if not report.is_inside('body'):
                 continue
-            if inside_p:
-                report = close_p(report)
-                inside_p = False
+            if report.is_inside('p'):
+                report.close('p')
                 continue
 
-        if not inside_body:
-            report = append_contacts(report, contacts)
-            report = append_links(report, links)
-            report = open_body(report)
-            inside_body = True
+        if not report.is_inside('body'):
+            report.append_contacts(contacts)
+            report.append_links(links)
+            report.open('body')
 
         # Unordered lists.
         if line.strip().startswith(('-', '*')):
             line = line.lstrip('*- ')
-            if inside_p:
-                report = close_p(report)
-                inside_p = False
-            if inside_ul:
-                report = close_li(report)
+            if report.is_inside('p'):
+                report.close('p')
+            if report.is_inside('ul'):
+                report.close('li')
             else:
-                report = open_ul(report)
+                report.open('ul')
                 inside_ul = True
-            report = open_li(report)
+            report.open('li')
             avoid_newline = True
 
-        elif not line.startswith(' ') and inside_ul:
-            report = close_ul(report)
-            inside_ul = False
+        elif not line.startswith(' ') and report.is_inside('ul'):
+            report.close('ul')
 
         # Here we paste the plain text.  Note that the text
         # in 'report' is generally _not_ followed by a newline,
         # so that we don't need to remove them when we append
         # '</p>'.
-        if inside_p:
-            report = report + '\n\t'
-        elif inside_ul:
+        if report.is_inside('p'):
+            report.newline()
+        elif report.is_inside('ul'):
             if not avoid_newline:
-                report = report + '\n\t'
+                report.newline()
         else:
-            report = open_p(report)
-            inside_p = True
+            report.open('p')
 
         line = escape(line)
 
@@ -477,7 +429,8 @@ def md2docbook(infile):
                     line = re.sub(r'\[.*\]', '', line)
                 else:
                     name = href
-                line = line.replace('(' + href + ')', append_a('', name, href))
+                line = line.replace('(' + href + ')',\
+                    '<a href="%s">%s</a>' % (href, name))
 
         # Handle *this*.
         line = re.sub(r'(^| )\*([^ ][^*]+)\*', r'\1<tt>\2</tt>', line)
@@ -485,23 +438,17 @@ def md2docbook(infile):
         # Handle `this`.
         line = re.sub(r'(^| )\`([^ ][^`]+)\`', r'\1<tt>\2</tt>', line)
 
-        report = report + reflow(line)
+        report.append(reflow(line))
 
-    # Now I'm feeling guilty :-(
-    if inside_p:
-        report = close_p(report)
-        inside_p = False
+    for tag in ['p', 'ul']:
+        if report.is_inside(tag):
+            report.close(tag)
 
-    if inside_ul:
-        report = close_ul(report)
-        inside_ul = False
+    report.append_sponsors(sponsors)
+    report.close('body')
+    report.close('project')
 
-    report = append_sponsors(report, sponsors)
-    report = close_body(report)
-    report = close_project(report) + DOCBOOK_FOOTER
-    inside_body = False
-
-    return report
+    return report.get()
 
 def main():
     if len(sys.argv) > 3:
