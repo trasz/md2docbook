@@ -34,7 +34,7 @@ from email.utils import parseaddr
 from xml.sax.saxutils import escape
 
 class report_class:
-    # This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
+    # This part is partly copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
     text = '''\
 <?xml version="1.0" encoding="utf-8" ?>
 <!DOCTYPE report PUBLIC "-//FreeBSD//DTD FreeBSD XML Database for
@@ -48,11 +48,6 @@ class report_class:
      %%START%%     - report month start
      %%STOP%%      - report month end
      %%YEAR%%      - report year
-     %%NUM%%       - report issue (first, second, third, fourth)
-     %%STARTNEXT%% - report month start
-     %%STOPNEXT%%  - report month end
-     %%YEARNEXT%%  - next report due year (if different than %%YEAR%%)
-     %%DUENEXT%%   - next report due date (i.e., June 6)
 -->
 
 <report>
@@ -64,25 +59,9 @@ class report_class:
 
   <section>
     <title>Introduction</title>
-
-    <p><strong>This is a draft of the %%START%%&ndash;%%STOP%% %%YEAR%%
-      status report.  Please check back after it is finalized, and
-      an announcement email is sent to the &os;-Announce mailing
-      list.</strong></p>
-
-    <?ignore
-    <p>This report covers &os;-related projects between %%START%% and
-      %%STOP%% %%YEAR%%.  This is the %%NUM%% of four reports planned for
-      %%YEAR%%.</p>
-
-    <p>The %%NUM%% quarter of %%YEAR%% was another productive quarter for
-      the &os; project and community. [...]</p>
-
-    <p>Thanks to all the reporters for the excellent work!</p>
-
-    <p>The deadline for submissions covering the period from %%STARTNEXT%%
-      to %%STOPNEXT%% %%YEARNEXT%% is %%DUENEXT%%, %%YEARNEXT%%.</p>
-     ?>
+    '''
+    # This part is copy/pasted from en_US.ISO8859-1/htdocs/news/status/report-template.xml
+    after_introduction = '''\
   </section>
 
   <category>
@@ -169,15 +148,22 @@ class report_class:
       The &os; project makes no representation as to the accuracy or
       veracity of any claims in these submissions.</p>
   </category>
-
     '''
 
-    inside = dict.fromkeys(['project',\
+    # salvadore:
+    # the keys of the following dictionary are all tags
+    # EXCEPT introduction, wich is a key that takes track of when
+    # we need to print the content of the after_introduction variable.
+    inside = dict.fromkeys(['introduction',\
+                            'project',\
                             'body',\
                             'p',\
                             'ul',\
                             'li',\
                             'code'])
+
+    def __init__(self):
+        self.inside['introduction'] = True
 
     def append(self, line):
         self.text += line
@@ -235,6 +221,8 @@ class report_class:
     def close(self, tag):
         self.text += '</' + tag + '>\n'
         self.inside[tag] = False
+        if self.is_inside('introduction'):
+            if tag == 'ul': self.close('p')
     
     def get(self):
         return self.text + '</report>'
@@ -255,8 +243,14 @@ class report_class:
             '"><title>' + title + '</title'
             if self.is_inside('project'):
                 self.close('project')
+            elif self.is_inside('introduction'):
+                self.text += self.after_introduction
+                self.inside['introduction'] = False
         else:
             extra = ''
+            if self.is_inside('introduction'):
+                if tag == 'body': return
+                if tag == 'ul': self.open('p')
 
         self.text += '<' + tag + extra + '>'
         self.inside[tag] = True
@@ -393,7 +387,7 @@ def md2docbook(infile):
         # Unordered lists.
         if line.strip().startswith(('-', '*')):
             line = line.lstrip('*- ')
-            if report.is_inside('p'):
+            if report.is_inside('p') and not report.is_inside('ul'):
                 report.close('p')
             if report.is_inside('ul'):
                 report.close('li')
