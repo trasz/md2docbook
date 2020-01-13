@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #
 # Copyright (c) 2018 Edward Tomasz Napierala <trasz@FreeBSD.org>
+# Copyright (c) 2019-2020 Lorenzo Salvadore <salvadore@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
