@@ -175,7 +175,8 @@ class report_class:
                             'body',\
                             'p',\
                             'ul',\
-                            'li'])
+                            'li',\
+                            'code'])
 
     def append(self, line):
         self.text += line
@@ -317,7 +318,7 @@ def md2docbook(infile):
         if line == '# Userland Programs #':
             cat = 'bin'
             continue
-        if line.startswith('# '):
+        if line.startswith('# ') and not report.is_inside('code'):
             sys.exit('invalid category name "%s"; please consult %s source code"' \
                 % (line, sys.argv[0]))
 
@@ -403,6 +404,15 @@ def md2docbook(infile):
 
         elif not line.startswith(' ') and report.is_inside('ul'):
             report.close('ul')
+
+        if line.startswith('```'):
+            line = line.lstrip('```')
+            if report.is_inside('code'):
+                if report.is_inside('p'):
+                    report.close('p')
+                report.close('code')
+            else:
+                report.open('code')
 
         # Here we paste the plain text.  Note that the text
         # in 'report' is generally _not_ followed by a newline,
