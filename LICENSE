@@ -1,6 +1,7 @@
 BSD 2-Clause License
 
-Copyright (c) 2018, Edward Tomasz Napierała
+Copyright (c) 2018 Edward Tomasz Napierala <trasz@FreeBSD.org>
+Copyright (c) 2019-2020 Lorenzo Salvadore <salvadore@FreeBSD.org>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
